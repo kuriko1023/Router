@@ -84,19 +84,18 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
     sendIcmpPacket(0x03, packet, Iface);
   }
 
-  struct icmp_t3_hdr i_hdr;
-  getIcmpHeader(packet, i_hdr);
-  if(i_hdr.icmp_type == 0x0B || i_hdr.icmp_type == 0x08 || i_hdr.icmp_type == 0x03){
-    // be an icmp packet
-    //TODO: checksum
-    uint16_t icmp_cksum = cksum(&i_hdr, sizeof(i_hdr));
-    if(icmp_cksum != 0xffff){
-      std::cerr << "invalid icmp_sum";
-      return;
-    }
-    //???
-    handleIcmpPacket(0x08, packet, disp_packet);
-  }
+  // struct icmp_t3_hdr i_t3_hdr;
+  // getIcmpt3Header(packet, i_t3_hdr);
+  // if(i_t3_hdr.icmp_type == 0x0B || i_t3_hdr.icmp_type == 0x08 || i_t3_hdr.icmp_type == 0x03){
+  //   // be an icmp packet
+  //   //TODO: checksum
+  //   if(i_t3_hdr.icmp_type == 0x0B){
+      
+  //   }
+    
+  //   //???
+  //   handleIcmpPacket(0x08, packet, disp_packet);
+  // }
 
   /**update ttl and cksum**/ 
   ipv4_hdr.ip_ttl = ttl;
@@ -104,13 +103,27 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   const Interface *dstIface = findIfaceByIp(ipv4_hdr.ip_dst);
   if(dstIface != nullptr){
     /**
-     * destined to a router -- be an ICMP packet
+     * destined to a router -- be an ICMP echo packet
      * */
-    invertPacket(ether_hdr, ipv4_hdr);
-    ipv4_hdr.ip_sum = ntohs(0x0000);
-    ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
-    loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
-    sendPacket(disp_packet, Iface);
+    struct icmp_hdr i_hdr;
+    getIcmpHeader(packet, i_hdr);
+
+    uint16_t icmp_cksum = cksum(&i_hdr, sizeof(i_hdr));
+    if(icmp_cksum != 0xffff){
+      std::cerr << "invalid icmp_sum";
+      return;
+    }
+
+    if(i_hdr.icmp_type == 0x08){
+      i_hdr.icmp_type = 0x01; 
+      memcpy(&disp_packet[34], &i_hdr, sizeof(i_hdr));
+      invertPacket(ether_hdr, ipv4_hdr);
+      ipv4_hdr.ip_sum = ntohs(0x0000);
+      ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+      ipv4_hdr.ip_ttl = 100;
+      loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
+      sendPacket(disp_packet, Iface);
+    }
   }
   else{
     /**
@@ -191,30 +204,51 @@ SimpleRouter::handleArpPacket(const Buffer& packet, const std::string& inIface, 
 }
 
 
-void
-SimpleRouter::handleIcmpPacket(uint16_t type, const Buffer& packet, Buffer& disp_packet)
-{
-  if(type == 0x08){
-    struct icmp_hdr i_hdr;
-    getIcmpHeader(packet, i_hdr);
-    i_hdr.icmp_type = 0x01; 
-    memcpy(&disp_packet[38], &i_hdr, sizeof(i_hdr));  
-  }
-  if(type == 0x0B || type == 0x03){
-    struct ethernet_hdr ether_hdr;
-    getEthernetHeader(packet, ether_hdr);
-    struct ip_hdr ipv4_hdr;
-    getIPv4Header(packet, ipv4_hdr);
-    invertPacket(ether_hdr, ipv4_hdr);
-    ipv4_hdr.ip_ttl = 0xff;
-    ipv4_hdr.ip_sum = ntohs(0x0000);
-    ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
-    struct icmp_hdr i_hdr;
-    createIcmpHeader(packet, type, i_hdr);
-    loadIcmpPacket(disp_packet, ether_hdr, ipv4_hdr, i_hdr);
-  }
-}
+// void
+// SimpleRouter::handleIcmpPacket(uint16_t type, const Buffer& packet, Buffer& disp_packet)
+// {
+//   if(type == 0x08){
+//     struct icmp_hdr i_hdr;
+//     getIcmpHeader(packet, i_hdr);
+//     i_hdr.icmp_type = 0x01; 
+//     memcpy(&disp_packet[34], &i_hdr, sizeof(i_hdr));  
+//   }
+//   if(type == 0x0B || type == 0x03){
+//     struct ethernet_hdr ether_hdr;
+//     getEthernetHeader(packet, ether_hdr);
+//     struct ip_hdr ipv4_hdr;
+//     getIPv4Header(packet, ipv4_hdr);
+//     invertPacket(ether_hdr, ipv4_hdr);
+//     ipv4_hdr.ip_ttl = 0xff;
+//     ipv4_hdr.ip_sum = ntohs(0x0000);
+//     ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+//     struct icmp_hdr i_hdr;
+//     createIcmpHeader(packet, type, i_hdr);
+//     loadIcmpPacket(disp_packet, ether_hdr, ipv4_hdr, i_hdr);
+//   }
+// }
 
+void 
+SimpleRouter::sendIcmpt3Packet(uint8_t type, const Buffer& packet, const std::string& Iface){
+  //? if the size 50 is correct
+  Buffer disp_packet = std::vector<unsigned char>(70, 0);
+
+  struct ethernet_hdr ether_hdr;
+  getEthernetHeader(packet, ether_hdr);
+  struct ip_hdr ipv4_hdr;
+  getIPv4Header(packet, ipv4_hdr);
+  invertPacket(ether_hdr, ipv4_hdr);
+  ipv4_hdr.ip_ttl = 0xff;
+  ipv4_hdr.ip_sum = ntohs(0x0000);
+  ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+    
+  struct icmp_t3_hdr i_t3_hdr;
+  createIcmpt3Header(packet, type, i_t3_hdr);
+    
+  loadIcmpt3Packet(disp_packet, ether_hdr, ipv4_hdr, i_t3_hdr);
+
+  sendPacket(disp_packet, Iface);
+}
 
 
 // You should not need to touch the rest of this code.
@@ -262,19 +296,18 @@ SimpleRouter::createArpRequestPacket(uint32_t dst_ip, const std::string& Iface){
 
 
 void
-SimpleRouter::createIcmpHeader(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_hdr){
+SimpleRouter::createIcmpHeader(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr){
   //? if the pointere is needed?
-  i_hdr.icmp_type = type;
+  i_t3_hdr.icmp_type = type;
   if(type = 0x0B){
-    i_hdr.icmp_code = 0;
+    i_t3_hdr.icmp_code = 0;
   }
   if(type = 0x03){
-    i_hdr.icmp_code = 3;
+    i_t3_hdr.icmp_code = 3;
   }
-  //TODO: is it correcet?
-  memcpy(&i_hdr.data, &packet[38], sizeof(&i_hdr.data));
-  i_hdr.icmp_sum = 0x0000;
-  i_hdr.icmp_sum = cksum(&i_hdr, sizeof(i_hdr));
+  memcpy(i_t3_hdr.data, &packet[14], sizeof(i_t3_hdr.data));
+  i_t3_hdr.icmp_sum = 0x0000;
+  i_t3_hdr.icmp_sum = cksum(&i_hdr, sizeof(i_hdr));
 }
 
 
@@ -388,8 +421,15 @@ SimpleRouter::getArpHeader(const Buffer& packet, struct arp_hdr& a_hdr)
 void
 SimpleRouter::getIcmpHeader(const Buffer& packet, struct icmp_hdr& i_hdr)
 {
-  memcpy(&i_hdr, &packet[38], sizeof(i_hdr));
+  memcpy(&i_hdr, &packet[34], sizeof(i_hdr));
 }
+
+void 
+SimpleRouter::getIcmpt3Header(const Buffer& packet, struct icmp_t3_hdr& i_t3_hdr)
+{
+  memcpy(&i_t3_hdr, &packet[34], sizeof(i_t3_hdr));
+}
+
 
 void
 SimpleRouter::loadIPv4Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr){
@@ -398,12 +438,11 @@ SimpleRouter::loadIPv4Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struc
 }
 
 void
-SimpleRouter::loadIcmpPacket(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, 
-struct icmp_hdr& i_hdr)
+SimpleRouter::loadIcmpt3Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, 
+struct icmp_t3_hdr& i_t3_hdr)
 {
   loadIPv4Packet(packet, eth_hdr, ipv4_hdr);
-  memcpy(&packet[38], &i_hdr, sizeof(i_hdr));
-  //TODO: set other positions with 0
+  memcpy(&packet[34], &i_t3_hdr, sizeof(i_t3_hdr));
 }
 
 
@@ -420,13 +459,6 @@ SimpleRouter::invertPacket(struct ethernet_hdr& ether_hdr, struct ip_hdr& ipv4_h
   memcpy(&ipv4_hdr.ip_dst, &tmp_ip, sizeof(ipv4_hdr.ip_dst));
 }
 
-void 
-SimpleRouter::sendIcmpPacket(uint8_t type, const Buffer& packet, const std::string& Iface){
-  //? if the size 50 is correct
-  Buffer disp_packet = std::vector<unsigned char>(50, 0);
-  handleIcmpPacket(type, packet, disp_packet);
-  sendPacket(disp_packet, Iface);
-}
 
 void
 SimpleRouter::reset(const pox::Ifaces& ports)

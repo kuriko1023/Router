@@ -76,10 +76,10 @@ public:
    *create an time exceeded icmp header sending from Iface
    */
   void 
-  createIcmpHeader(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_hdr);
+  createIcmpt3Header(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr);
 
   void
-  sendIcmpPacket(uint8_t type, const Buffer& packet, const std::string& Iface);
+  sendIcmpt3Packet(uint8_t type, const Buffer& packet, const std::string& Iface);
 
 
   /**
@@ -165,17 +165,20 @@ public:
   void 
   getIcmpHeader(const Buffer& packet, struct icmp_hdr& i_hdr);
 
+  void 
+  getIcmpt3Header(const Buffer& packet, struct icmp_t3_hdr& i_t3_hdr);
+
   void
   loadIPv4Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr);
 
   void 
-  loadIcmpPacket(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, struct icmp_hdr& i_hdr);
+  loadIcmpt3Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, struct icmp_t3_hdr& i_t3_hdr);
 
   void
   invertPacket(struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr);
 
-  void 
-  sendTimeExceededIcmp(const Buffer& packet, const std::string& Iface);
+  // void 
+  // sendTimeExceededIcmp(const Buffer& packet, const std::string& Iface);
 
   
 
