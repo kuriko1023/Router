@@ -219,7 +219,7 @@ private:
   std::thread m_tickerThread;
   mutable std::mutex m_mutex;
 
-  friend std::ostream&nke
+  friend std::ostream&
   operator<<(std::ostream& os, const ArpCache& cache);
 };
 

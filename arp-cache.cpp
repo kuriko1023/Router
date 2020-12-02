@@ -35,7 +35,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
   }
   
   for(auto it = m_cacheEntries.begin(); it != m_cacheEntries.end(); it++) {
-    if(*it->isValid == false){
+    if((*it)->isValid == false){
       it = m_cacheEntries.erase(it);
     }
     else{
@@ -48,7 +48,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 void
 ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
   if(req->nTimesSent < 5){
-    const std::string outIface = ((req->packets)[0]).iface;
+    const std::string outIface = ((req->packets).front()).iface;
     Buffer arp_request = m_router.createArpRequestPacket(req->ip, outIface);
     m_router.sendPacket(arp_request, outIface);
     req->nTimesSent += 1;
@@ -72,7 +72,7 @@ ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
     memcpy(&ether_hdr, &(p_packet.packet[0]), sizeof(ether_hdr));
     std::shared_ptr<ArpEntry> arp_entry = lookup(htons(arp_req->ip));
     memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
-    memcpy(&p_packet[0], &ether_hdr, sizeof(ether_hdr));
+    memcpy(&p_packet.packet[0], &ether_hdr, sizeof(ether_hdr));
 
     m_router.sendPacket(p_packet.packet, p_packet.iface);
   }

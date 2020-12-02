@@ -35,10 +35,10 @@ RoutingTable::lookup(uint32_t ip) const
     RoutingTableEntry entry = *it;
     if((entry.dest & entry.mask) == (ip & entry.mask)){
       if(longest_prefix_entry == nullptr) {
-        longest_prefix_entry = entry;
+        longest_prefix_entry = &entry;
       }
       if(entry.mask > longest_prefix_entry->mask){
-        longest_prefix_entry = entry;
+        longest_prefix_entry = &entry;
       }
     }
   }

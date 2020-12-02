@@ -64,7 +64,7 @@ public:
    * Call in handleIPv4Packet
    */
   void
-  handleIcmpPacket(uint16_t type, const Buffer& packet, const Buffer& disp_packet);
+  handleIcmpPacket(uint16_t type, const Buffer& packet, Buffer& disp_packet);
 
   /**
    *create an arp request sending from Iface
@@ -166,10 +166,10 @@ public:
   getIcmpHeader(const Buffer& packet, struct icmp_hdr& i_hdr);
 
   void
-  loadIPv4Packet(const Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr);
+  loadIPv4Packet(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr);
 
   void 
-  loadIcmpPacket(const Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, struct icmp_hdr& i_hdr);
+  loadIcmpPacket(Buffer& packet, struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr, struct icmp_hdr& i_hdr);
 
   void
   invertPacket(struct ethernet_hdr& eth_hdr, struct ip_hdr& ipv4_hdr);
