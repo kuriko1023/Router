@@ -69,8 +69,8 @@ public:
   /**
    *create an arp request sending from Iface
    */
-  Buffer&
-  createArpRequestPacket(uint32_t dst_ip, const std::string& Iface);
+  void
+  createArpRequestPacket(uint32_t dst_ip, const std::string& Iface, Buffer& arp_packet);
 
    /**
    *create an time exceeded icmp header sending from Iface

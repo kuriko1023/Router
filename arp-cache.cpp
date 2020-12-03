@@ -49,7 +49,8 @@ void
 ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
   if(req->nTimesSent < 5){
     const std::string outIface = ((req->packets).front()).iface;
-    Buffer arp_request = m_router.createArpRequestPacket(req->ip, outIface);
+    Buffer arp_request = std::vector<unsigned char>(42, 0);
+    m_router.createArpRequestPacket(req->ip, outIface, arp_request);
     m_router.sendPacket(arp_request, outIface);
     req->nTimesSent += 1;
     req->timeSent = std::chrono::steady_clock::now();   //? ******is it correct?
