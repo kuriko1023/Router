@@ -232,7 +232,7 @@ void
 SimpleRouter::sendIcmpt3Packet(uint8_t type, const Buffer& packet, const std::string& Iface){
   //? if the size 50 is correct
   Buffer disp_packet = std::vector<unsigned char>(70, 0);
-
+　
   struct ethernet_hdr ether_hdr;
   getEthernetHeader(packet, ether_hdr);
   struct ip_hdr ipv4_hdr;
