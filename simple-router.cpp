@@ -43,6 +43,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
 
   /**when destination hard-ware address is neither the corresponding MAC address of the interface nor a broadcast
    *  address( FF:FF:FF:FF:FF:FF )**/
+  print_addr_eth(ether_hdr.ether_dhost); 
   std::vector<unsigned char> tmp_dest(ether_hdr.ether_dhost, ether_hdr.ether_dhost + 6);
   if(findIfaceByMac(tmp_dest) == nullptr && !(tmp_dest  == broadcast_addr))  {
     std::cerr << "Ethernet frames not destined to the router, ignoring" << std::endl;
@@ -66,6 +67,8 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   struct ip_hdr ipv4_hdr;
   getIPv4Header(packet, ipv4_hdr);
 
+  print_addr_ip_int(ipv4_hdr.ip_dst);
+
   uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
   if(ck_sum != 0xffff){
     std::cerr << "invalid ip_sum";
@@ -75,13 +78,13 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   uint8_t ttl = ipv4_hdr.ip_ttl - 1;
   if(ttl < 0){
     //TODO: send an ICMP packet of time exceeded 
-    sendIcmpPacket(0x0B, packet, Iface);
+    sendIcmpt3Packet(0x0B, packet, Iface);
     return;
   }
   
   if(ipv4_hdr.ip_p == 0x06 || ipv4_hdr.ip_p == 0x11){
     // send an Port Unreachable message
-    sendIcmpPacket(0x03, packet, Iface);
+    sendIcmpt3Packet(0x03, packet, Iface);
   }
 
   // struct icmp_t3_hdr i_t3_hdr;
@@ -258,11 +261,10 @@ SimpleRouter::SimpleRouter()
 }
 
 
-Buffer&
-SimpleRouter::createArpRequestPacket(uint32_t dst_ip, const std::string& Iface){
+void
+SimpleRouter::createArpRequestPacket(uint32_t dst_ip, const std::string& Iface, Buffer& arp_packet){
       /**create arp header**/
       const  Interface* outIface = findIfaceByName(Iface);
-      Buffer arp_packet = std::vector<unsigned char>(42, 0);
       struct arp_hdr a_hdr;
       struct ethernet_hdr ether_hdr;
 
@@ -290,24 +292,22 @@ SimpleRouter::createArpRequestPacket(uint32_t dst_ip, const std::string& Iface){
       memcpy(&ether_hdr.ether_type, &arp_type, sizeof(ether_hdr.ether_type));
       memcpy(&arp_packet[0], &ether_hdr, sizeof(ether_hdr));
       memcpy(&arp_packet[14], &a_hdr, sizeof(a_hdr));
-
-      return arp_packet;
 }
 
 
 void
-SimpleRouter::createIcmpHeader(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr){
+SimpleRouter::createIcmpt3Header(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr){
   //? if the pointere is needed?
   i_t3_hdr.icmp_type = type;
-  if(type = 0x0B){
+  if(type == 0x0B){
     i_t3_hdr.icmp_code = 0;
   }
-  if(type = 0x03){
+  if(type == 0x03){
     i_t3_hdr.icmp_code = 3;
   }
   memcpy(i_t3_hdr.data, &packet[14], sizeof(i_t3_hdr.data));
   i_t3_hdr.icmp_sum = 0x0000;
-  i_t3_hdr.icmp_sum = cksum(&i_hdr, sizeof(i_hdr));
+  i_t3_hdr.icmp_sum = cksum(&i_t3_hdr, sizeof(i_t3_hdr));
 }
 
 
