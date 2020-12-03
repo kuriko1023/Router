@@ -79,13 +79,13 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   uint8_t ttl = ipv4_hdr.ip_ttl - 1;
   if(ttl < 0){
     //TODO: send an ICMP packet of time exceeded 
-    sendIcmpPacket(0x0B, packet, Iface);
+    sendIcmpt3Packet(0x0B, packet, Iface);
     return;
   }
   
   if(ipv4_hdr.ip_p == 0x06 || ipv4_hdr.ip_p == 0x11){
     // send an Port Unreachable message
-    sendIcmpPacket(0x03, packet, Iface);
+    sendIcmpt3Packet(0x03, packet, Iface);
   }
 
   // struct icmp_t3_hdr i_t3_hdr;
@@ -300,7 +300,7 @@ SimpleRouter::createArpRequestPacket(uint32_t dst_ip, const std::string& Iface){
 
 
 void
-SimpleRouter::createIcmpHeader(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr){
+SimpleRouter::createIcmpt3Header(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr){
   //? if the pointere is needed?
   i_t3_hdr.icmp_type = type;
   if(type = 0x0B){
