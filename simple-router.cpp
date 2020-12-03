@@ -43,6 +43,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
 
   /**when destination hard-ware address is neither the corresponding MAC address of the interface nor a broadcast
    *  address( FF:FF:FF:FF:FF:FF )**/
+  print_addr_eth(ether_hdr.ether_dhost); 
   std::vector<unsigned char> tmp_dest(ether_hdr.ether_dhost, ether_hdr.ether_dhost + 6);
   if(findIfaceByMac(tmp_dest) == nullptr && !(tmp_dest  == broadcast_addr))  {
     std::cerr << "Ethernet frames not destined to the router, ignoring" << std::endl;
@@ -65,6 +66,8 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
 
   struct ip_hdr ipv4_hdr;
   getIPv4Header(packet, ipv4_hdr);
+
+  print_addr_ip_int(ipv4_hdr.ip_dst);
 
   uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
   if(ck_sum != 0xffff){
