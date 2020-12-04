@@ -70,13 +70,20 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
 void 
 ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
   for(auto it = arp_req->packets.begin(); it != arp_req->packets.end(); it++){
+    std::cerr << "2-1" << std::endl;
     PendingPacket p_packet = *it;
-
+   
     /**fill the ethernet_hdr.dhost with mac address(look up in arp cache)**/
     struct ethernet_hdr ether_hdr;
     memcpy(&ether_hdr, &(p_packet.packet[0]), sizeof(ether_hdr));
+    std::cerr << "2-2" << std::endl;
     std::shared_ptr<ArpEntry> arp_entry = lookup(htons(arp_req->ip));
+    std::cerr << "2-3" << std::endl;
+    if(arp_entry == nullptr){
+      std::cerr << "nullptr" << std::endl;
+    }
     memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
+    std::cerr << "2-4" << std::endl;
     memcpy(&p_packet.packet[0], &ether_hdr, sizeof(ether_hdr));
 
     m_router.sendPacket(p_packet.packet, p_packet.iface);

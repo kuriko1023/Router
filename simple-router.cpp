@@ -49,11 +49,11 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
     return;
   }
 
-  if(ether_hdr.ether_type == ntohs(0x0806)) {
+  if(ether_hdr.ether_type == ntohs(0x0800)) {
     handleIPv4Packet(packet, inIface, ether_hdr);
   }
 
-  if(ether_hdr.ether_type == ntohs(0x0800)) {
+  if(ether_hdr.ether_type == ntohs(0x0806)) {
     handleArpPacket(packet, inIface, ether_hdr);
   }
 }
@@ -73,15 +73,15 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   print_addr_ip_int(htonl(ipv4_hdr.ip_src));
   print_addr_ip_int(htonl(ipv4_hdr.ip_dst));
   
-  // uint16_t ip_sum = ipv4_hdr.ip_sum;
-  // ipv4_hdr.ip_sum = 0x0000;
-  // uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
-  // if(ck_sum != ip_sum){
-  //   std::cerr << ck_sum << std::endl;
-  //   std::cerr << ip_sum << std::endl;
-  //   std::cerr << "invalid ip_sum";
-  //   return;
-  // }
+  uint16_t ip_sum = ipv4_hdr.ip_sum;
+  ipv4_hdr.ip_sum = 0x0000;
+  uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+  if(ck_sum != ip_sum){
+    std::cerr << ck_sum << std::endl;
+    std::cerr << ip_sum << std::endl;
+    std::cerr << "invalid ip_sum";
+    return;
+  }
 
   uint8_t ttl = ipv4_hdr.ip_ttl - 1;
   if(ttl < 0){
@@ -227,11 +227,23 @@ SimpleRouter::handleArpPacket(const Buffer& packet, const std::string& inIface, 
   }
   else if(a_hdr.arp_op == ntohs(0x0002)){
     //Arp reply packet
+
+    std::cerr << "receive an arp reply;" << std::endl;
+    uint8_t* tmp_data = (uint8_t*)packet.data();
+    print_hdr_arp(tmp_data + 14);
+    std::cerr << "3" << std::endl;
     Buffer reply_mac = std::vector<unsigned char>(6, 0);
+    std::cerr << "1" << std::endl;
     memcpy(&reply_mac[0], a_hdr.arp_sha, sizeof(reply_mac));
+    std::cerr << "2" << std::endl;
+    //TODO: check why it sames that the arpentry is not inserted into the arpcache;
+    //possible method: print arp_sip and pendingpackets[0].ip check if equal.
     std::shared_ptr<ArpRequest> arp_req = m_arp.insertArpEntry(reply_mac, a_hdr.arp_sip);
+    std::cerr << "4" << std::endl;
     m_arp.sendPendingPackets(arp_req);
+    std::cerr << "5" << std::endl;
     m_arp.removeRequest(arp_req);
+    std::cerr << "6" << std::endl;
   }
 }
 
