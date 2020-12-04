@@ -21,7 +21,6 @@
 #include "routing-table.hpp"
 #include "core/protocol.hpp"
 #include "core/interface.hpp"
-
 #include "pox.hpp"
 
 namespace simple_router {
@@ -80,8 +79,6 @@ public:
 
   void
   sendIcmpt3Packet(uint8_t type, const Buffer& packet, const std::string& Iface);
-
-  void 
 
   /**
    * USE THIS METHOD TO SEND PACKETS
