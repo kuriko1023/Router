@@ -33,7 +33,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
     std::cerr << "Received packet, but interface is unknown, ignoring" << std::endl;
     return;
   }
-
+  print_hdr_eth(packet.data());
   std::cerr << getRoutingTable() << std::endl;
 
   // FILL THIS IN

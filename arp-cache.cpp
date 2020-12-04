@@ -55,12 +55,12 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
     req->nTimesSent += 1;
     req->timeSent = std::chrono::steady_clock::now();   //? ******is it correct?
   }
-  // else if(req->nTimesSent >= 5){
-  //   for(auto it = req->packets.begin(); it != req->packets.end(); it++){
-  //     PendingPacket p_packet = *it;
-  //     m_router.sendIcmpPacket(0x03);
-  //   }
-  // }
+  else if(req->nTimesSent >= 5){
+    for(auto it = req->packets.begin(); it != req->packets.end(); it++){
+      PendingPacket p_packet = *it;
+      m_router.sendIcmpt3Packet(0x03, p_packet.packet, p_packet.iface);
+    }
+  }
 }
 
 void 
