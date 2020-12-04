@@ -51,6 +51,10 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
     const std::string outIface = ((req->packets).front()).iface;
     Buffer arp_request = std::vector<unsigned char>(42, 0);
     m_router.createArpRequestPacket(req->ip, outIface, arp_request);
+    print_hdr_eth(arp_request.data());
+    uint8_t tmp_arp_hdr[28];
+    memcpy(tmp_arp_hdr, &arp_request[14], sizeof(tmp_arp_hdr));
+    print_hdr_arp(tmp_arp_hdr);
     m_router.sendPacket(arp_request, outIface);
     req->nTimesSent += 1;
     req->timeSent = std::chrono::steady_clock::now();   //? ******is it correct?

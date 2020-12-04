@@ -30,15 +30,17 @@ namespace simple_router {
 RoutingTableEntry 
 RoutingTable::lookup(uint32_t ip) const
 {
-  RoutingTableEntry* longest_prefix_entry = nullptr;
+  const RoutingTableEntry* longest_prefix_entry = nullptr;
   for(auto it = m_entries.begin(); it != m_entries.end(); it++){
     RoutingTableEntry entry = *it;
     if((entry.dest & entry.mask) == (ip & entry.mask)){
       if(longest_prefix_entry == nullptr) {
-        longest_prefix_entry = &entry;
+        longest_prefix_entry = &(*it);
+        print_addr_ip_int(entry.dest);
       }
       if(entry.mask > longest_prefix_entry->mask){
-        longest_prefix_entry = &entry;
+        longest_prefix_entry = &(*it);
+        print_addr_ip_int(entry.dest);
       }
     }
   }

@@ -18,6 +18,7 @@
 #define SIMPLE_ROUTER_ROUTING_TABLE_HPP
 
 #include "core/protocol.hpp"
+#include "pox.hpp"
 
 #include <list>
 

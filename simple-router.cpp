@@ -34,13 +34,12 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
     return;
   }
   print_hdr_eth(packet.data());
-  // std::cerr << getRoutingTable() << std::endl;
+  std::cerr << getRoutingTable() << std::endl;
 
   // FILL THIS IN
   struct ethernet_hdr ether_hdr;
   getEthernetHeader(packet, ether_hdr);
 
-  print_addr_eth(ether_hdr.ether_dhost);
 
   /**when destination hard-ware address is neither the corresponding MAC address of the interface nor a broadcast
    *  address( FF:FF:FF:FF:FF:FF )**/
@@ -67,15 +66,22 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   struct ip_hdr ipv4_hdr;
   getIPv4Header(packet, ipv4_hdr);
 
-  print_addr_ip_int(ipv4_hdr.ip_dst);
+  std::cerr << "begin:" << std::endl;
+  uint8_t tmp_ip_hdr[20];
+  memcpy(tmp_ip_hdr, &packet[14], sizeof(tmp_ip_hdr));
+  print_hdr_ip(tmp_ip_hdr);
+  print_addr_ip_int(htonl(ipv4_hdr.ip_src));
+  print_addr_ip_int(htonl(ipv4_hdr.ip_dst));
   
-
-  uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
-  if(ck_sum != 0xffff){
-    std::cerr << ck_sum;
-    std::cerr << "invalid ip_sum";
-    return;
-  }
+  // uint16_t ip_sum = ipv4_hdr.ip_sum;
+  // ipv4_hdr.ip_sum = 0x0000;
+  // uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+  // if(ck_sum != ip_sum){
+  //   std::cerr << ck_sum << std::endl;
+  //   std::cerr << ip_sum << std::endl;
+  //   std::cerr << "invalid ip_sum";
+  //   return;
+  // }
 
   uint8_t ttl = ipv4_hdr.ip_ttl - 1;
   if(ttl < 0){
@@ -113,6 +119,7 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
     struct icmp_hdr i_hdr;
     getIcmpHeader(packet, i_hdr);
 
+   //TODO: to correct
     uint16_t icmp_cksum = cksum(&i_hdr, sizeof(i_hdr));
     if(icmp_cksum != 0xffff){
       std::cerr << "invalid icmp_sum";
@@ -136,7 +143,19 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
      * be a forwarding packet
      * */
     // TODO: Try
-    RoutingTableEntry rt_entry = m_routingTable.lookup(ipv4_hdr.ip_dst);
+    std::cerr << "be a forwaiding packet" << std::endl;
+    RoutingTableEntry rt_entry;
+    try{
+       rt_entry = m_routingTable.lookup(ipv4_hdr.ip_dst);
+       std::cerr<<"ip.dst:"<<std::endl;
+       print_addr_ip_int(ipv4_hdr.ip_dst);
+    }catch(std::runtime_error){
+      std::cerr << "routingtable entry look up failed" << std::endl;
+      return;
+    }
+
+    std::cerr << "rt_entry.dest:" << std::endl;
+    print_addr_ip_int(htonl(rt_entry.dest));
     const Interface *outIface =  findIfaceByName(rt_entry.ifName);
       
     /**update address for ethernet header address**/
@@ -151,9 +170,16 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
        * to discover the IP-MAC mapping.
        * */
       /**broadcast ARP packet to get hardware addressque**/
+      std::cerr << "no valid arp_entry" << std::endl;
       ipv4_hdr.ip_sum = ntohs(0x0000);
       ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
       loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
+
+      print_hdr_eth(disp_packet.data());
+      uint8_t tmp_ip_hdr[20];
+      memcpy(tmp_ip_hdr, &disp_packet[14], sizeof(tmp_ip_hdr));
+      print_hdr_ip(tmp_ip_hdr);
+
       m_arp.queueRequest(ipv4_hdr.ip_dst, disp_packet, rt_entry.ifName);
       return;
     }
