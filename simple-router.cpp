@@ -34,7 +34,7 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
     return;
   }
   print_hdr_eth(packet.data());
-  std::cerr << getRoutingTable() << std::endl;
+  // std::cerr << getRoutingTable() << std::endl;
 
   // FILL THIS IN
   struct ethernet_hdr ether_hdr;
@@ -68,9 +68,11 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   getIPv4Header(packet, ipv4_hdr);
 
   print_addr_ip_int(ipv4_hdr.ip_dst);
+  
 
   uint16_t ck_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
   if(ck_sum != 0xffff){
+    std::cerr << ck_sum;
     std::cerr << "invalid ip_sum";
     return;
   }
@@ -121,6 +123,7 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
       i_hdr.icmp_type = 0x01; 
       memcpy(&disp_packet[34], &i_hdr, sizeof(i_hdr));
       invertPacket(ether_hdr, ipv4_hdr);
+      //TODO: cksum
       ipv4_hdr.ip_sum = ntohs(0x0000);
       ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
       ipv4_hdr.ip_ttl = 100;
