@@ -58,6 +58,8 @@ void print_hdr_ip(const uint8_t* buf);
 void print_hdr_icmp(const uint8_t* buf);
 void print_hdr_arp(const uint8_t* buf);
 
+void print_hdrs_k(const Buffer& packet);
+
 /* prints all headers, starting from eth */
 void print_hdrs(const uint8_t* buf, uint32_t length);
 

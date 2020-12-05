@@ -138,6 +138,17 @@ print_hdr_eth(const uint8_t* buf) {
   fprintf(stderr, "\ttype: %d\n", ntohs(ehdr->ether_type));
 }
 
+
+void print_hdrs_k(const Buffer& packet){
+   print_hdr_eth(packet.data());
+    uint8_t tmp_ip_hdr[20];
+    memcpy(tmp_ip_hdr, &packet[14], sizeof(tmp_ip_hdr));
+    print_hdr_ip(tmp_ip_hdr);
+    uint8_t tmp_icmp_hdr[4];
+    memcpy(tmp_icmp_hdr, &packet[34], sizeof(tmp_icmp_hdr));
+    print_hdr_icmp(tmp_icmp_hdr);
+}
+
 /* Prints out fields in IP header. */
 void print_hdr_ip(const uint8_t* buf) {
   const ip_hdr *iphdr = (const ip_hdr *)(buf);

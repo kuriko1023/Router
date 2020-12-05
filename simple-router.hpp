@@ -75,10 +75,10 @@ public:
    *create an time exceeded icmp header sending from Iface
    */
   void 
-  createIcmpt3Header(const Buffer& packet, uint8_t type, struct icmp_t3_hdr& i_t3_hdr);
+  createIcmpt3Header(const Buffer& packet, uint8_t type, uint8_t code, struct icmp_t3_hdr& i_t3_hdr);
 
   void
-  sendIcmpt3Packet(uint8_t type, const Buffer& packet, const std::string& Iface);
+  sendIcmpt3Packet(uint8_t type, uint8_t code, const Buffer& packet, const std::string& Iface);
 
   /**
    * USE THIS METHOD TO SEND PACKETS

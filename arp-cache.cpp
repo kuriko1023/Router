@@ -45,7 +45,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
     }
   }
 
-  std::cerr<< "##############floop end" << std::endl;
+  // std::cerr<< "##############floop end" << std::endl;
 
 }
 
@@ -66,8 +66,8 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
   }
   else if(req->nTimesSent >= 5){
     for(auto it = req->packets.begin(); it != req->packets.end(); it++){
-      PendingPacket p_packet = *it;
-      m_router.sendIcmpt3Packet(0x03, p_packet.packet, p_packet.iface);
+      // PendingPacket p_packet = *it;
+      m_router.sendIcmpt3Packet(0x03, 0x01, (*it).packet, (*it).iface);
     }
   }
 }
@@ -92,17 +92,13 @@ ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
     // if(arp_entry == nullptr){
     //   std::cerr << "nullptr" << std::endl;
     // }
+
+    const Interface* outIface = m_router.findIfaceByName(p_packet.iface);
+    memcpy(ether_hdr.ether_shost, (outIface->addr).data(), sizeof(ether_hdr.ether_shost));
     memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
     std::cerr << "2-4" << std::endl;
     memcpy(&p_packet.packet[0], &ether_hdr, sizeof(ether_hdr));
     std::cerr << "#########send pending packet:" << std::endl;
-    print_hdr_eth(p_packet.packet.data());
-    uint8_t tmp_ip_hdr[20];
-    memcpy(tmp_ip_hdr, &p_packet.packet[14], sizeof(tmp_ip_hdr));
-    print_hdr_ip(tmp_ip_hdr);
-    uint8_t tmp_icmp_hdr[4];
-    memcpy(tmp_icmp_hdr, &p_packet.packet[34], sizeof(tmp_icmp_hdr));
-    print_hdr_icmp(tmp_icmp_hdr);
     m_router.sendPacket(p_packet.packet, p_packet.iface);
   }
 }
@@ -187,9 +183,7 @@ ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
   std::cerr << "3-4" << std::endl;
   if (request != m_arpRequests.end()) {
     std::cerr << "3-5" << std::endl;
-    auto r_request = *request;
-    m_arpRequests.erase(request);
-    return r_request;
+    return *request;
   }
   else {
     std::cerr << "3-6" << std::endl;
