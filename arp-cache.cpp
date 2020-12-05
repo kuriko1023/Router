@@ -29,6 +29,8 @@ namespace simple_router {
 void
 ArpCache::periodicCheckArpRequestsAndCacheEntries()
 {
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
   for(auto it = m_arpRequests.begin(); it != m_arpRequests.end(); it++) {
     std::shared_ptr<ArpRequest> req = *it;
     handleRequest(req);
@@ -47,6 +49,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 
 void
 ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
+   std::lock_guard<std::recursive_mutex> lock(m_mutex);
   if(req->nTimesSent < 5){
     const std::string outIface = ((req->packets).front()).iface;
     Buffer arp_request = std::vector<unsigned char>(42, 0);
@@ -56,8 +59,8 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
     memcpy(tmp_arp_hdr, &arp_request[14], sizeof(tmp_arp_hdr));
     print_hdr_arp(tmp_arp_hdr);
     m_router.sendPacket(arp_request, outIface);
-    req->nTimesSent += 1;
-    req->timeSent = std::chrono::steady_clock::now();   //? ******is it correct?
+    req -> nTimesSent += 1;
+    req -> timeSent = std::chrono::steady_clock::now();   //? ******is it correct?
   }
   else if(req->nTimesSent >= 5){
     for(auto it = req->packets.begin(); it != req->packets.end(); it++){
@@ -69,6 +72,9 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
 
 void 
 ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
+
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
   for(auto it = arp_req->packets.begin(); it != arp_req->packets.end(); it++){
     std::cerr << "2-1" << std::endl;
     PendingPacket p_packet = *it;
@@ -77,15 +83,24 @@ ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
     struct ethernet_hdr ether_hdr;
     memcpy(&ether_hdr, &(p_packet.packet[0]), sizeof(ether_hdr));
     std::cerr << "2-2" << std::endl;
-    std::shared_ptr<ArpEntry> arp_entry = lookup(htons(arp_req->ip));
+    std::shared_ptr<ArpEntry> arp_entry = lookup(arp_req->ip);
+    std::cerr << "arp_req.ip:" << std::endl;
+    print_addr_ip_int(arp_req->ip);
     std::cerr << "2-3" << std::endl;
-    if(arp_entry == nullptr){
-      std::cerr << "nullptr" << std::endl;
-    }
+    // if(arp_entry == nullptr){
+    //   std::cerr << "nullptr" << std::endl;
+    // }
     memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
     std::cerr << "2-4" << std::endl;
     memcpy(&p_packet.packet[0], &ether_hdr, sizeof(ether_hdr));
-
+    std::cerr << "#########send pending packet:" << std::endl;
+    print_hdr_eth(p_packet.packet.data());
+    uint8_t tmp_ip_hdr[20];
+    memcpy(tmp_ip_hdr, &p_packet.packet[14], sizeof(tmp_ip_hdr));
+    print_hdr_ip(tmp_ip_hdr);
+    uint8_t tmp_icmp_hdr[4];
+    memcpy(tmp_icmp_hdr, &p_packet.packet[34], sizeof(tmp_icmp_hdr));
+    print_hdr_icmp(tmp_icmp_hdr);
     m_router.sendPacket(p_packet.packet, p_packet.iface);
   }
 }
@@ -108,7 +123,7 @@ ArpCache::~ArpCache()
 std::shared_ptr<ArpEntry>
 ArpCache::lookup(uint32_t ip)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
   for (const auto& entry : m_cacheEntries) {
     if (entry->isValid && entry->ip == ip) {
@@ -122,7 +137,7 @@ ArpCache::lookup(uint32_t ip)
 std::shared_ptr<ArpRequest>
 ArpCache::queueRequest(uint32_t ip, const Buffer& packet, const std::string& iface)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
   auto request = std::find_if(m_arpRequests.begin(), m_arpRequests.end(),
                            [ip] (const std::shared_ptr<ArpRequest>& request) {
@@ -141,30 +156,39 @@ ArpCache::queueRequest(uint32_t ip, const Buffer& packet, const std::string& ifa
 void
 ArpCache::removeRequest(const std::shared_ptr<ArpRequest>& entry)
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
+  std::cerr << "4-0" << std::endl;
   m_arpRequests.remove(entry);
+  std::cerr << "4-1" << std::endl;
 }
 
 std::shared_ptr<ArpRequest>
 ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
-{
-  std::lock_guard<std::mutex> lock(m_mutex);
-
+{ std::cerr << "3-0" << std::endl;
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
+   std::cerr << "3-1" << std::endl;
   auto entry = std::make_shared<ArpEntry>();
+  std::cerr << "3-2" << std::endl;
   entry->mac = mac;
   entry->ip = ip;
   entry->timeAdded = steady_clock::now();
   entry->isValid = true;
   m_cacheEntries.push_back(entry);
+  std::cerr << "3-3" << std::endl;
 
   auto request = std::find_if(m_arpRequests.begin(), m_arpRequests.end(),
                            [ip] (const std::shared_ptr<ArpRequest>& request) {
                              return (request->ip == ip);
                            });
+  //* remove request
+  
+  std::cerr << "3-4" << std::endl;
   if (request != m_arpRequests.end()) {
+    std::cerr << "3-5" << std::endl;
     return *request;
   }
   else {
+    std::cerr << "3-6" << std::endl;
     return nullptr;
   }
 }
@@ -172,7 +196,7 @@ ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
 void
 ArpCache::clear()
 {
-  std::lock_guard<std::mutex> lock(m_mutex);
+  std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
   m_cacheEntries.clear();
   m_arpRequests.clear();
@@ -185,7 +209,7 @@ ArpCache::ticker()
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     {
-      std::lock_guard<std::mutex> lock(m_mutex);
+      std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
       auto now = steady_clock::now();
 
@@ -203,7 +227,7 @@ ArpCache::ticker()
 std::ostream&
 operator<<(std::ostream& os, const ArpCache& cache)
 {
-  std::lock_guard<std::mutex> lock(cache.m_mutex);
+  std::lock_guard<std::recursive_mutex> lock(cache.m_mutex);
 
   os << "\nMAC            IP         AGE                       VALID\n"
      << "-----------------------------------------------------------\n";

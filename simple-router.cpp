@@ -33,8 +33,8 @@ SimpleRouter::handlePacket(const Buffer& packet, const std::string& inIface)
     std::cerr << "Received packet, but interface is unknown, ignoring" << std::endl;
     return;
   }
-  print_hdr_eth(packet.data());
-  std::cerr << getRoutingTable() << std::endl;
+  // print_hdr_eth(packet.data());
+  // std::cerr << getRoutingTable() << std::endl;
 
   // FILL THIS IN
   struct ethernet_hdr ether_hdr;
@@ -83,12 +83,6 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
     return;
   }
 
-  uint8_t ttl = ipv4_hdr.ip_ttl - 1;
-  if(ttl < 0){
-    //TODO: send an ICMP packet of time exceeded 
-    sendIcmpt3Packet(0x0B, packet, Iface);
-    return;
-  }
   
   if(ipv4_hdr.ip_p == 0x06 || ipv4_hdr.ip_p == 0x11){
     // send an Port Unreachable message
@@ -109,23 +103,30 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
   // }
 
   /**update ttl and cksum**/ 
-  ipv4_hdr.ip_ttl = ttl;
 
   const Interface *dstIface = findIfaceByIp(ipv4_hdr.ip_dst);
   if(dstIface != nullptr){
     /**
      * destined to a router -- be an ICMP echo packet
      * */
-    struct icmp_hdr i_hdr;
-    getIcmpHeader(packet, i_hdr);
-
-   //TODO: to correct
-    uint16_t icmp_cksum = cksum(&i_hdr, sizeof(i_hdr));
-    if(icmp_cksum != 0xffff){
-      std::cerr << "invalid icmp_sum";
+    if(ipv4_hdr.ip_ttl < 0){
+      //TODO: send an ICMP packet of time exceeded 
+      sendIcmpt3Packet(0x0B, packet, Iface);
       return;
     }
 
+    struct icmp_hdr i_hdr;
+    getIcmpHeader(packet, i_hdr);
+    
+   //TODO: to correct
+    uint16_t cur_cksum = i_hdr.icmp_sum;
+    i_hdr.icmp_sum = ntohs(0x0000);
+    uint16_t icmp_cksum = cksum(&i_hdr, sizeof(i_hdr));
+    if(icmp_cksum != cur_cksum){
+      std::cerr << "invalid icmp_sum";
+      return;
+    }
+    i_hdr.icmp_sum = icmp_cksum;
     if(i_hdr.icmp_type == 0x08){
       i_hdr.icmp_type = 0x01; 
       memcpy(&disp_packet[34], &i_hdr, sizeof(i_hdr));
@@ -144,18 +145,30 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
      * */
     // TODO: Try
     std::cerr << "be a forwaiding packet" << std::endl;
+
+    uint8_t ttl = ipv4_hdr.ip_ttl - 1;
+    if(ttl < 0){
+      //TODO: send an ICMP packet of time exceeded 
+      sendIcmpt3Packet(0x0B, packet, Iface);
+      return;
+    }
+
+    ipv4_hdr.ip_ttl = ttl;
+
+    struct icmp_hdr i_hdr;
+    getIcmpHeader(packet, i_hdr);
     RoutingTableEntry rt_entry;
     try{
        rt_entry = m_routingTable.lookup(ipv4_hdr.ip_dst);
        std::cerr<<"ip.dst:"<<std::endl;
-       print_addr_ip_int(ipv4_hdr.ip_dst);
+      //  print_addr_ip_int(ipv4_hdr.ip_dst);
     }catch(std::runtime_error){
       std::cerr << "routingtable entry look up failed" << std::endl;
       return;
     }
 
     std::cerr << "rt_entry.dest:" << std::endl;
-    print_addr_ip_int(htonl(rt_entry.dest));
+    // print_addr_ip_int(htonl(rt_entry.dest));
     const Interface *outIface =  findIfaceByName(rt_entry.ifName);
       
     /**update address for ethernet header address**/
@@ -175,10 +188,10 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
       ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
       loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
 
-      print_hdr_eth(disp_packet.data());
-      uint8_t tmp_ip_hdr[20];
-      memcpy(tmp_ip_hdr, &disp_packet[14], sizeof(tmp_ip_hdr));
-      print_hdr_ip(tmp_ip_hdr);
+      // print_hdr_eth(disp_packet.data());
+      // uint8_t tmp_ip_hdr[20];
+      // memcpy(tmp_ip_hdr, &disp_packet[14], sizeof(tmp_ip_hdr));
+      // print_hdr_ip(tmp_ip_hdr);
 
       m_arp.queueRequest(ipv4_hdr.ip_dst, disp_packet, rt_entry.ifName);
       return;
@@ -186,9 +199,12 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
     else{
       /**valid entry found
        * dispatch ipv4 packet to the next-hop address**/
+      std::cerr << "#################valid entry found" << std::endl;
       memcpy(ether_hdr.ether_dhost, (arp_entry->mac).data(), sizeof(ether_hdr.ether_dhost));
       /**update ethernet frame with ether_hdr and ipv4_hdr**/
       loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
+      std::cerr << "transmit the packet"<< std::endl;
+      print_hdr_eth(disp_packet.data());
       sendPacket(disp_packet, rt_entry.ifName);
     }
   }
@@ -238,11 +254,16 @@ SimpleRouter::handleArpPacket(const Buffer& packet, const std::string& inIface, 
     std::cerr << "2" << std::endl;
     //TODO: check why it sames that the arpentry is not inserted into the arpcache;
     //possible method: print arp_sip and pendingpackets[0].ip check if equal.
+    std::cerr << "arp.sip:" << std::endl;
+    print_addr_ip_int(a_hdr.arp_sip);
     std::shared_ptr<ArpRequest> arp_req = m_arp.insertArpEntry(reply_mac, a_hdr.arp_sip);
+    if(arp_req == nullptr){
+       std::cerr << "null" << std::endl;
+    }
     std::cerr << "4" << std::endl;
     m_arp.sendPendingPackets(arp_req);
     std::cerr << "5" << std::endl;
-    m_arp.removeRequest(arp_req);
+    // m_arp.removeRequest(arp_req);
     std::cerr << "6" << std::endl;
   }
 }
