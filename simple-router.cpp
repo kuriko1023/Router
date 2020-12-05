@@ -263,7 +263,7 @@ SimpleRouter::handleArpPacket(const Buffer& packet, const std::string& inIface, 
     std::cerr << "4" << std::endl;
     m_arp.sendPendingPackets(arp_req);
     std::cerr << "5" << std::endl;
-    // m_arp.removeRequest(arp_req);
+    m_arp.removeRequest(arp_req);
     std::cerr << "6" << std::endl;
   }
 }

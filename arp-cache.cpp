@@ -36,7 +36,7 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
     handleRequest(req);
   }
   
-  for(auto it = m_cacheEntries.begin(); it != m_cacheEntries.end(); it++) {
+  for(auto it = m_cacheEntries.begin(); it != m_cacheEntries.end();) {
     if((*it)->isValid == false){
       it = m_cacheEntries.erase(it);
     }
@@ -44,6 +44,8 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
       ++it;
     }
   }
+
+  std::cerr<< "##############floop end" << std::endl;
 
 }
 
@@ -185,7 +187,9 @@ ArpCache::insertArpEntry(const Buffer& mac, uint32_t ip)
   std::cerr << "3-4" << std::endl;
   if (request != m_arpRequests.end()) {
     std::cerr << "3-5" << std::endl;
-    return *request;
+    auto r_request = *request;
+    m_arpRequests.erase(request);
+    return r_request;
   }
   else {
     std::cerr << "3-6" << std::endl;
