@@ -221,6 +221,7 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
       memcpy(ether_hdr.ether_shost, (outIface->addr).data(), sizeof(ether_hdr.ether_shost));
       memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
     /**update ethernet frame with ether_hdr and ipv4_hdr**/
+      ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
       loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
       std::cerr << "transmit the packet"<< std::endl;
       print_hdrs_k(disp_packet);
