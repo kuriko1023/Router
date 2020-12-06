@@ -31,6 +31,8 @@ ArpCache::periodicCheckArpRequestsAndCacheEntries()
 {
   std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
+  std::cerr << *this << std::endl;
+
   for(auto it = m_arpRequests.begin(); it != m_arpRequests.end(); it++) {
     std::shared_ptr<ArpRequest> req = *it;
     handleRequest(req);
@@ -66,8 +68,12 @@ ArpCache::handleRequest(const std::shared_ptr<ArpRequest> req){
   }
   else if(req->nTimesSent >= 5){
     for(auto it = req->packets.begin(); it != req->packets.end(); it++){
-      // PendingPacket p_packet = *it;
-      m_router.sendIcmpt3Packet(0x03, 0x01, (*it).packet, (*it).iface);
+      PendingPacket p_packet = *it;
+      struct ip_hdr ipv4_hdr;
+      m_router.getIPv4Header((*it).packet, ipv4_hdr);
+      const RoutingTable rt = m_router.getRoutingTable();
+      RoutingTableEntry rt_entry = rt.lookup(ipv4_hdr.ip_src);
+      m_router.sendIcmpt3Packet(0x03, 0x01, (*it).packet, rt_entry.ifName);
     }
   }
 }
@@ -84,11 +90,7 @@ ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
     /**fill the ethernet_hdr.dhost with mac address(look up in arp cache)**/
     struct ethernet_hdr ether_hdr;
     memcpy(&ether_hdr, &(p_packet.packet[0]), sizeof(ether_hdr));
-    std::cerr << "2-2" << std::endl;
     std::shared_ptr<ArpEntry> arp_entry = lookup(arp_req->ip);
-    std::cerr << "arp_req.ip:" << std::endl;
-    print_addr_ip_int(arp_req->ip);
-    std::cerr << "2-3" << std::endl;
     // if(arp_entry == nullptr){
     //   std::cerr << "nullptr" << std::endl;
     // }
@@ -99,6 +101,7 @@ ArpCache::sendPendingPackets(const std::shared_ptr<ArpRequest> arp_req){
     std::cerr << "2-4" << std::endl;
     memcpy(&p_packet.packet[0], &ether_hdr, sizeof(ether_hdr));
     std::cerr << "#########send pending packet:" << std::endl;
+    print_hdrs_k(p_packet.packet);
     m_router.sendPacket(p_packet.packet, p_packet.iface);
   }
 }
@@ -133,8 +136,8 @@ ArpCache::lookup(uint32_t ip)
 }
 
 std::shared_ptr<ArpRequest>
-ArpCache::queueRequest(uint32_t ip, const Buffer& packet, const std::string& iface)
-{
+ArpCache::queueRequest(uint32_t ip, const Buffer& packet, const std::string& iface){
+
   std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
   auto request = std::find_if(m_arpRequests.begin(), m_arpRequests.end(),

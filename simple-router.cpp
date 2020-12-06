@@ -192,7 +192,7 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
 
     // TODO: maybe not correct
    
-    std::shared_ptr<ArpEntry> arp_entry =  m_arp.lookup(htons(ipv4_hdr.ip_dst));
+    std::shared_ptr<ArpEntry> arp_entry =  m_arp.lookup(ipv4_hdr.ip_dst);
     if(arp_entry == nullptr){
       /**
        * valid entry is not found
@@ -202,9 +202,9 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
        * */
       /**broadcast ARP packet to get hardware addressque**/
       std::cerr << "no valid arp_entry" << std::endl;
-      ipv4_hdr.ip_sum = ntohs(0x0000);
-      ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
-      loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
+      // ipv4_hdr.ip_sum = ntohs(0x0000);
+      // ipv4_hdr.ip_sum = cksum(&ipv4_hdr, sizeof(ipv4_hdr));
+      // loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
 
       // print_hdr_eth(disp_packet.data());
       // uint8_t tmp_ip_hdr[20];
@@ -217,13 +217,13 @@ SimpleRouter::handleIPv4Packet(const Buffer& packet, const std::string& Iface, s
     else{
       /**valid entry found
        * dispatch ipv4 packet to the next-hop address**/
-      std::cerr << "#################valid entry found" << std::endl;
+      std::cerr << "###################valid entry found#############" << std::endl;
       memcpy(ether_hdr.ether_shost, (outIface->addr).data(), sizeof(ether_hdr.ether_shost));
-      memcpy(ether_hdr.ether_dhost, (arp_entry->mac).data(), sizeof(ether_hdr.ether_dhost));
-      /**update ethernet frame with ether_hdr and ipv4_hdr**/
+      memcpy(ether_hdr.ether_dhost, &(arp_entry->mac[0]), sizeof(ether_hdr.ether_dhost));
+    /**update ethernet frame with ether_hdr and ipv4_hdr**/
       loadIPv4Packet(disp_packet, ether_hdr, ipv4_hdr);
       std::cerr << "transmit the packet"<< std::endl;
-      print_hdr_eth(disp_packet.data());
+      print_hdrs_k(disp_packet);
       sendPacket(disp_packet, rt_entry.ifName);
     }
   }
